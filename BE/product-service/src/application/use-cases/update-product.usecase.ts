@@ -45,7 +45,7 @@ export class UpdateProductUseCase {
     this.domainService.validateProduct(productEntity);
 
     // ✅ Step 5 — Emit async event (Kafka/NATS/Redis Streams)
-    await this.producer.productUpdated(productEntity);
+    // await this.producer.productUpdated(productEntity);
 
     // ✅ Step 6 — Convert Domain → API Response
     return this.mapper.toResponse(productEntity);

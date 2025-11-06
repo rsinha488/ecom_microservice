@@ -26,7 +26,7 @@ import { CreateProductDto } from '../../application/dto/create-product.dto';
 @ApiTags('Products')
 @Controller('products')
 export class ProductController {
-  constructor(private readonly createProduct: CreateProductUseCase) {}
+  constructor(private readonly createProduct: CreateProductUseCase) { }
 
   /**
    * Create a new product.
@@ -39,25 +39,21 @@ export class ProductController {
       default: {
         summary: 'Example product create payload',
         value: {
-          title: 'Wireless Bluetooth Headphones',
+          name: 'Wireless Bluetooth Headphones',
+          sku: 'WBH-12345',
           description: 'High-quality headphones with noise cancellation',
           price: 4599,
           stock: 120,
           category: 'electronics',
-          brand: 'Sony',
           images: [
             'https://cdn.example.com/products/headphone1.png',
             'https://cdn.example.com/products/headphone2.png',
           ],
-          specifications: {
-            color: 'Black',
-            batteryLife: '30 hours',
-            connectivity: 'Bluetooth 5.2',
-          },
         },
       },
     },
   })
+
   @ApiResponse({ status: 201, description: 'Product created successfully' })
   @ApiResponse({ status: 400, description: 'Validation failed' })
   @ApiResponse({ status: 500, description: 'Internal server error' })

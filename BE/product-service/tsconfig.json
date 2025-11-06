@@ -1,5 +1,4 @@
 {
-  "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "baseUrl": "./",
     "rootDir": "./src",
@@ -7,7 +6,6 @@
 
     // ✅ Allows using shared common package
     "paths": {
-      "@ecom/common": ["../../../packages/common/src"]
     },
 
     // ✅ Required for NestJS decorators
