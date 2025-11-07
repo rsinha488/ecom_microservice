@@ -1,8 +1,10 @@
 import { Global, Module } from '@nestjs/common';
 import { EventBusService } from './event-bus.service';
+import { KafkaModule } from './kafka/kafka.module';
 
 @Global()
 @Module({
+  imports: [KafkaModule],   
   providers: [EventBusService],
   exports: [EventBusService],
 })

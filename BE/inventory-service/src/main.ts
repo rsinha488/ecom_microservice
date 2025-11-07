@@ -7,6 +7,8 @@ import helmet from 'helmet';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
 import { Transport, MicroserviceOptions } from '@nestjs/microservices';
+import { ResponseInterceptor } from './infrastructure/interceptors/response.interceptor';
+import { GlobalExceptionFilter } from './infrastructure/filters/global-exception.filter';
 
 async function bootstrap() {
   try {
@@ -42,6 +44,7 @@ async function bootstrap() {
      */
     const app = await NestFactory.create(AppModule, {
       logger: winstonLogger,
+      abortOnError: false,
     });
 
     const configService = app.get(ConfigService);
@@ -64,8 +67,16 @@ async function bootstrap() {
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
+        disableErrorMessages: process.env.NODE_ENV === 'production',
+        errorHttpStatusCode: 422,
       }),
     );
+
+    // Apply global interceptor for consistent response format
+    app.useGlobalInterceptors(new ResponseInterceptor());
+
+    // Apply global exception filter
+    app.useGlobalFilters(new GlobalExceptionFilter());
 
     /**
      * --------------------------------------------------------------
@@ -86,10 +97,10 @@ async function bootstrap() {
      * --------------------------------------------------------------
      * ✅ KAFKA Microservice Setup
      * Inventory service LISTENS to:
-     *   • product_created  → create initial inventory entry
-     *   • product_updated  → sync product title/price/etc
-     *   • stock_adjust     → update stock quantity
-     * --------------------------------------------------------------
+     *   • product.created  → create initial inventory entry
+     *   • product.updated  → sync product title/price/etc
+      *   • stock_adjust     → update stock quantity
+      * --------------------------------------------------------------
      */
     app.connectMicroservice<MicroserviceOptions>({
       transport: Transport.KAFKA,
@@ -97,7 +108,7 @@ async function bootstrap() {
         client: {
           clientId: 'inventory-service',
           brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
-           retry: {
+          retry: {
             initialRetryTime: 100,
             retries: 8
           }

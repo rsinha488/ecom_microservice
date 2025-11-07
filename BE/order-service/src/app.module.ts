@@ -20,7 +20,17 @@ import { ORDER_REPOSITORY } from './domain/interfaces/order-repository.interface
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, load: [orderConfig] }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: (() => {
+        const env = process.env.NODE_ENV;
+
+        if (env === 'production') return '.env.production';
+        if (env === 'local') return '.env.local';
+
+        return '.env'; // default fallback
+      })(),
+    }),
 
     MongooseModule.forRoot(process.env.MONGO_URI!),
 
@@ -55,4 +65,4 @@ import { ORDER_REPOSITORY } from './domain/interfaces/order-repository.interface
     ListOrdersUseCase,
   ],
 })
-export class AppModule {}
+export class AppModule { }

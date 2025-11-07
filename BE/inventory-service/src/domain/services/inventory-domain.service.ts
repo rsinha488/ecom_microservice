@@ -1,6 +1,6 @@
-// src/domain/services/inventory-domain.service.ts
 import { Injectable } from '@nestjs/common';
 import { InventoryItem } from '../entities/inventory-item.entity';
+import { PriceVO } from '../value-objects/product-vo';
 
 /**
  * Domain service for Inventory logic.
@@ -11,10 +11,36 @@ import { InventoryItem } from '../entities/inventory-item.entity';
  * ✅ Reserved stock cannot exceed available stock
  * ✅ Adjusting stock respects domain invariants
  * ✅ Out-of-stock detection
+ * ✅ Product synchronization with catalog
  */
 
 @Injectable()
 export class InventoryDomainService {
+  /**
+   * Create initial inventory for a new product.
+   */
+  createInitialInventory(sku: string): InventoryItem {
+    return new InventoryItem(
+      crypto.randomUUID(),
+      sku,
+      0, // initial stock
+      0, // initial reserved
+      undefined, // location
+      0, // initial sold
+      new Date(),
+      new Date()
+    );
+  }
+
+  /**
+   * Update product details in inventory.
+   */
+  updateProductDetails(inventory: InventoryItem, sku: string): InventoryItem {
+    inventory.sku = sku;
+    inventory.updatedAt = new Date();
+    return inventory;
+  }
+
   /**
    * Increase stock.
    */
@@ -46,7 +72,7 @@ export class InventoryDomainService {
   /**
    * Reserve stock for an order.
    */
-  reserveStock(inventory: InventoryItem, quantity: number): InventoryItem {
+  commitReservedToSold(inventory: InventoryItem, quantity: number): InventoryItem {
     if (quantity <= 0) throw new Error('Quantity must be positive');
 
     if (inventory.stock < quantity) {
@@ -63,7 +89,7 @@ export class InventoryDomainService {
   /**
    * Release reserved stock (e.g., canceled order).
    */
-  releaseReservedStock(inventory: InventoryItem, quantity: number): InventoryItem {
+  releaseReserved(inventory: InventoryItem, quantity: number): InventoryItem {
     if (quantity <= 0) throw new Error('Quantity must be positive');
 
     if (inventory.reserved - quantity < 0) {

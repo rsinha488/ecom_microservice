@@ -12,11 +12,13 @@ export class CreateProductUseCase {
     @Inject(PRODUCT_REPOSITORY)
     private readonly repo: ProductRepositoryInterface,
 
-    private readonly producer: ProductProducer, // ✅ Kafka Producer
+    private readonly producer: ProductProducer,
   ) {}
 
   /**
-   * Create product and emit event to inventory service
+   * -------------------------------------------------------------
+   * ✅ Use-case: Create a new product + emit Kafka event
+   * -------------------------------------------------------------
    */
   async execute(dto: CreateProductDto) {
     try {
@@ -32,24 +34,57 @@ export class CreateProductUseCase {
         dto.images,
       );
 
-      // ✅ Save to DB
+      // ✅ Save product to database
       const created = await this.repo.create(product);
 
-      // ✅ Emit Kafka event for inventory service
+      // ✅ Emit Kafka event so inventory service creates stock entry
       await this.producer.emitProductCreatedEvent({
         sku: dto.sku,
         initialStock: dto.stock,
       });
 
-      this.logger.log(`✅ Product created + event emitted. SKU=${dto.sku}`);
+      this.logger.log(`✅ Product created + event emitted | SKU=${dto.sku}`);
 
       return created;
+
     } catch (err) {
-      this.logger.error('❌ Failed to create product', err);
+      this.logger.error(
+        `❌ Product creation failed | SKU=${dto.sku} | Error: ${err.message}`,
+      );
+
+      /**
+       * -------------------------------------------------------------
+       * ✅ Handle common error types
+       * -------------------------------------------------------------
+       */
+      if (err.code === 11000) {
+        // MongoDB duplicate key — SKU already exists
+        throw new HttpException(
+          {
+            success: false,
+            code: 'PRODUCT_ALREADY_EXISTS',
+            message: `Product with SKU "${dto.sku}" already exists`,
+          },
+          HttpStatus.CONFLICT,
+        );
+      }
+
+      if (err.name === 'KafkaConnectionError') {
+        throw new HttpException(
+          {
+            success: false,
+            code: 'KAFKA_PRODUCER_ERROR',
+            message: 'Failed to publish product.created event',
+            details: err.message,
+          },
+          HttpStatus.SERVICE_UNAVAILABLE,
+        );
+      }
 
       throw new HttpException(
         {
           success: false,
+          code: 'PRODUCT_CREATION_FAILED',
           message: 'Failed to create product',
           details: err.message,
         },

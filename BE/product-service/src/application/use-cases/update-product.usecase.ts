@@ -1,6 +1,6 @@
 // src/application/use-cases/update-product.usecase.ts
 
-import { Injectable, Inject, NotFoundException } from '@nestjs/common';
+import { Injectable, Inject, NotFoundException, InternalServerErrorException } from '@nestjs/common';
 import {
   PRODUCT_REPOSITORY,
   ProductRepositoryInterface,
@@ -23,31 +23,42 @@ export class UpdateProductUseCase {
   ) {}
 
   async execute(id: string, dto: UpdateProductDto) {
-    // ✅ Step 1 — Ensure product exists (Domain rule)
-    const existing = await this.repository.findById(id);
-    await this.domainService.ensureProductExists(existing, id);
+    try {
+      // ✅ Step 1 — Ensure product exists
+      const existing = await this.repository.findById(id);
+      await this.domainService.ensureProductExists(existing, id);
 
-    // ✅ Step 2 — Update product (Repository)
-    const updated = await this.repository.update(id, dto);
+      // ✅ Step 2 — Update product
+      const updated = await this.repository.update(id, dto);
 
-    if (!updated) {
-      throw new NotFoundException(`Product with id ${id} not found`);
+      if (!updated) {
+        throw new NotFoundException(`❌ Product with id ${id} not found for update`);
+      }
+
+      // ✅ Step 3 — Convert DB document → Domain entity
+      const productEntity = this.mapper.toEntity(updated);
+
+      if (!productEntity) {
+        throw new InternalServerErrorException('❌ Mapper failed: Cannot convert updated product to domain entity');
+      }
+
+      // ✅ Step 4 — Domain validation
+      this.domainService.validateProduct(productEntity);
+
+      console.log('✅ Product updated successfully:', productEntity);
+      // ✅ Step 5 — Emit Kafka Event
+      try {
+        await this.producer.emitProductUpdatedEvent(productEntity);
+      } catch (err) {
+        console.error('❌ Kafka event emit failed (product.updated):', err);
+        // ❗ Do NOT stop update API response — event failure shouldn't break request.
+      }
+
+      // ✅ Step 6 — Response
+      return this.mapper.toResponse(productEntity);
+    } catch (error) {
+      console.error(`❌ Error updating product ${id}:`, error);
+      throw error;
     }
-
-    // ✅ Step 3 — Convert DB document → Domain entity
-    const productEntity = this.mapper.toEntity(updated);
-
-    if (!productEntity) {
-      throw new Error('Mapper failed to convert updated product');
-    }
-
-    // ✅ Step 4 — Domain validates the updated product
-    this.domainService.validateProduct(productEntity);
-
-    // ✅ Step 5 — Emit async event (Kafka/NATS/Redis Streams)
-    // await this.producer.productUpdated(productEntity);
-
-    // ✅ Step 6 — Convert Domain → API Response
-    return this.mapper.toResponse(productEntity);
   }
 }

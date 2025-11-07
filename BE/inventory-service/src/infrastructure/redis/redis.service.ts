@@ -1,50 +1,35 @@
-import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
-import Redis, { RedisOptions } from 'ioredis';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import Redis from 'ioredis';
 
 @Injectable()
-export class RedisService implements OnModuleDestroy {
-  private readonly logger = new Logger(RedisService.name);
+export class RedisService implements OnModuleInit, OnModuleDestroy {
+  private client: Redis;
+  private logger = new Logger(RedisService.name);
 
-  private readonly publisher: Redis;
-  private readonly subscriber: Redis;
+  onModuleInit(): void {
+    const host = process.env.REDIS_HOST || '127.0.0.1';
+    const port = Number(process.env.REDIS_PORT || 6379);
+    const url = process.env.REDIS_URL || undefined;
 
-  constructor(
-    @Inject('REDIS_OPTIONS') private readonly options: RedisOptions,
-  ) {
-    this.publisher = new Redis({
-      ...this.options,
-      retryStrategy: times => Math.min(times * 50, 2000),
-    });
+    this.client = url ? new Redis(url) : new Redis({ host, port });
 
-    this.subscriber = new Redis({
-      ...this.options,
-      retryStrategy: times => Math.min(times * 50, 2000),
-    });
-
-    this.publisher.on('connect', () =>
-      this.logger.log('✅ Redis Publisher connected'),
-    );
-    this.subscriber.on('connect', () =>
-      this.logger.log('✅ Redis Subscriber connected'),
-    );
-
-    this.publisher.on('error', err => this.logger.error('❌ Publisher error', err));
-    this.subscriber.on('error', err => this.logger.error('❌ Subscriber error', err));
+    this.client.on('connect', () => this.logger.log('✅ Redis connected'));
+    this.client.on('error', (err) => this.logger.error('❌ Redis error', err));
   }
 
-  /** Publish client */
   getClient(): Redis {
-    return this.publisher;
+    if (!this.client) throw new Error('Redis client not initialized');
+    return this.client;
   }
 
-  /** Subscriber client for pub/sub */
-  getSubscriber(): Redis {
-    return this.subscriber;
+  async quit(): Promise<void> {
+    if (this.client) {
+      await this.client.quit();
+      this.logger.log('🛑 Redis disconnected');
+    }
   }
 
-  async onModuleDestroy() {
-    this.logger.log('⚡ Closing Redis connections...');
-    await this.publisher.quit();
-    await this.subscriber.quit();
+  onModuleDestroy(): void {
+    this.quit().catch((err) => this.logger.error('Error closing Redis', err));
   }
 }

@@ -1,5 +1,6 @@
 // src/domain/services/product-domain.service.ts
 
+import { FilterProductDto } from 'src/application/dto/filter-product.dto';
 import { Product } from '../entities/product.entity';
 
 export class ProductDomainService {
@@ -12,11 +13,13 @@ export class ProductDomainService {
     }
   }
 
-  validateListFilters(filter: any) {
-    if (filter.minPrice && filter.maxPrice && filter.minPrice > filter.maxPrice) {
+ validateListFilters(filter: FilterProductDto) {
+  if (filter.minPrice && filter.maxPrice) {
+    if (Number(filter.minPrice) > Number(filter.maxPrice)) {
       throw new Error('minPrice cannot be greater than maxPrice');
     }
   }
+}
 
   // Domain Rule: Product must exist before updating
   async ensureProductExists(product: Product | null, id: string) {

@@ -7,14 +7,17 @@ import { RedisLockService } from './infrastructure/redis/redis-lock.service';
 import { InventoryRepository } from './infrastructure/repositories/inventory.repository';
 import { InventoryMapper } from './infrastructure/mappers/inventory.mapper';
 import { CreateItemUseCase } from './application/use-cases/create-item.usecase';
-import { AdjustStockUseCase } from './application/use-cases/adjust-stock.usecase';
+// import { AdjustStockUseCase } from './application/use-cases/adjust-stock.usecase';
 import { GetItemUseCase } from './application/use-cases/get-item.usecase';
 import { ListItemsUseCase } from './application/use-cases/list-items.usecase';
 import { InventoryController } from './presentation/controllers/inventory.controller';
 import { InventoryProducer } from './infrastructure/events/inventory.producer';
 import { RedisModule } from './infrastructure/redis/redis.module';
-import { EventSubscribersModule } from './infrastructure/event-subscribers/event-subscribers.module';
+// import { EventSubscribersModule } from './infrastructure/event-subscribers/event-subscribers.module';
 import { InventoryDatabaseModule } from './infrastructure/database/database.module';
+import { EventsModule } from './infrastructure/events/events.module';
+import { KafkaModule } from './infrastructure/event-bus/kafka/kafka.module';
+import { EventBusModule } from './infrastructure/event-bus/event-bus.module';
 
 @Module({
   imports: [
@@ -23,8 +26,11 @@ import { InventoryDatabaseModule } from './infrastructure/database/database.modu
     MongooseModule.forFeature([{ name: InventoryItemModel.name, schema: InventoryItemSchema }]),
   
     RedisModule, 
-    EventSubscribersModule,   
+    // EventSubscribersModule,  
+    KafkaModule,
+    EventBusModule, 
     InventoryDatabaseModule,  
+    EventsModule,    
   ],
   
   controllers: [InventoryController],
@@ -35,13 +41,15 @@ import { InventoryDatabaseModule } from './infrastructure/database/database.modu
 
     // use-cases
     CreateItemUseCase,
-    AdjustStockUseCase,
+    // AdjustStockUseCase,
     GetItemUseCase,
     ListItemsUseCase,
 
     // producers / infra
     InventoryProducer,
   ],
-  exports: [CreateItemUseCase, AdjustStockUseCase, GetItemUseCase, ListItemsUseCase],
+  exports: [CreateItemUseCase, 
+    // AdjustStockUseCase, 
+    GetItemUseCase, ListItemsUseCase],
 })
 export class AppModule {}
